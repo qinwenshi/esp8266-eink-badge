@@ -2,7 +2,7 @@
 
 ESP8266 驱动 3.7 寸黑白红三色墨水屏，通过 Wi-Fi 从上位机拉取内容，用于显示工卡、名片、会议室状态等场景。
 
-![演示效果](https://raw.githubusercontent.com/qinwenshi/esp8266-eink-badge/main/docs/demo.jpg)
+<img src="https://raw.githubusercontent.com/qinwenshi/esp8266-eink-badge/main/docs/demo.jpg" width="50%">
 
 ---
 
