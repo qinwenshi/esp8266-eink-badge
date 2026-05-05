@@ -7,7 +7,7 @@ elements:
 
   - type: text
     text: "BADGE"
-    font: Helvetica
+    font: STHeiti Medium
     size: 20
     color: white
     pos: [120, 30]
@@ -15,21 +15,21 @@ elements:
 
   - type: text
     text: "{{ name }}"
-    font: Helvetica
+    font: STHeiti Medium
     size: 32
     color: black
     pos: [20, 100]
 
   - type: text
     text: "{{ title }}"
-    font: Helvetica
+    font: STHeiti Medium
     size: 18
     color: red
     pos: [20, 150]
 
   - type: text
     text: "{{ department }}"
-    font: Helvetica
+    font: STHeiti Medium
     size: 16
     color: black
     pos: [20, 185]
@@ -42,7 +42,7 @@ elements:
 
   - type: text
     text: "{{ company }}"
-    font: Helvetica
+    font: STHeiti Medium
     size: 14
     color: black
     pos: [20, 230]

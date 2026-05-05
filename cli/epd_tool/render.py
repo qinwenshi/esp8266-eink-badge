@@ -7,12 +7,19 @@ from .format import encode, EPD_WIDTH, EPD_HEIGHT
 
 
 def _load_font(font_name: str, size: int) -> ImageFont.ImageFont:
-    """Try system fonts, fallback to default."""
+    """Try system fonts with CJK fallbacks, last resort is Pillow default."""
     candidates = [
         font_name,
         f"/System/Library/Fonts/Supplemental/{font_name}.ttf",
         f"/usr/share/fonts/truetype/{font_name}.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
+        # macOS CJK fonts
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        # Linux CJK fonts
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
     ]
     for path in candidates:
         try:
