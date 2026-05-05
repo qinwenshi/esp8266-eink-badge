@@ -2,15 +2,15 @@ size: [240, 416]
 background: white
 elements:
   - type: rect
-    rect: [0, 0, 240, 60]
+    rect: [0, 0, 240, 40]
     fill: black
 
   - type: text
     text: "BADGE"
     font: KingHwa_OldSong
-    size: 20
+    size: 18
     color: white
-    pos: [120, 30]
+    pos: [120, 20]
     align: center
 
   - type: text
@@ -18,25 +18,25 @@ elements:
     font: KingHwa_OldSong
     size: 32
     color: black
-    pos: [20, 100]
+    pos: [20, 80]
 
   - type: text
     text: "{{ title }}"
     font: KingHwa_OldSong
     size: 18
     color: red
-    pos: [20, 150]
+    pos: [20, 128]
 
   - type: text
     text: "{{ department }}"
     font: KingHwa_OldSong
     size: 16
     color: black
-    pos: [20, 185]
+    pos: [20, 162]
 
   - type: line
-    start: [20, 210]
-    end: [220, 210]
+    start: [20, 188]
+    end: [220, 188]
     color: red
     width: 2
 
@@ -45,8 +45,9 @@ elements:
     font: KingHwa_OldSong
     size: 14
     color: black
-    pos: [20, 230]
+    pos: [20, 206]
 
   - type: image
     src: "avatar.jpg"
-    rect: [0, 256, 240, 160]
+    rect: [0, 230, 240, 186]
+    fit: cover

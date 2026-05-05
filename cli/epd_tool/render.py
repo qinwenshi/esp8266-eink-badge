@@ -118,8 +118,37 @@ def render_template(template_path: str, data: dict) -> bytes:
             src = Path(path.parent) / elem['src']
             img = Image.open(src).convert('RGBA')
             x, y, iw, ih = elem['rect']
-            img = img.resize((iw, ih))
-            bw_img.paste(img, (x, y), img.split()[3] if img.mode == 'RGBA' else None)
+            fit = elem.get('fit', 'cover')
+
+            if fit == 'cover':
+                # Center-crop to target aspect ratio, then resize (no stretching)
+                src_w, src_h = img.size
+                src_ratio = src_w / src_h
+                dst_ratio = iw / ih
+                if src_ratio > dst_ratio:
+                    # Source is wider — crop sides
+                    crop_w = int(src_h * dst_ratio)
+                    left = (src_w - crop_w) // 2
+                    img = img.crop((left, 0, left + crop_w, src_h))
+                else:
+                    # Source is taller — crop top/bottom
+                    crop_h = int(src_w / dst_ratio)
+                    top = (src_h - crop_h) // 2
+                    img = img.crop((0, top, src_w, top + crop_h))
+                img = img.resize((iw, ih), Image.LANCZOS)
+            elif fit == 'contain':
+                # Letterbox/pillarbox — paste on white background
+                img.thumbnail((iw, ih), Image.LANCZOS)
+                bg = Image.new('RGBA', (iw, ih), (255, 255, 255, 255))
+                off_x = (iw - img.width) // 2
+                off_y = (ih - img.height) // 2
+                bg.paste(img, (off_x, off_y), img.split()[3])
+                img = bg
+            else:
+                # fill — stretch to fit (original behavior)
+                img = img.resize((iw, ih), Image.LANCZOS)
+
+            bw_img.paste(img, (x, y), img.split()[3])
 
     # BW plane: dither to 1-bit (white=1, black=0)
     bw_1bit = bw_img.convert('1')
