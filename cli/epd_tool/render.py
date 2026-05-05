@@ -6,9 +6,16 @@ from pathlib import Path
 from .format import encode, EPD_WIDTH, EPD_HEIGHT
 
 
+_FONTS_DIR = Path(__file__).parent.parent / "fonts"
+
+
 def _load_font(font_name: str, size: int) -> ImageFont.ImageFont:
-    """Try system fonts with CJK fallbacks, last resort is Pillow default."""
+    """Try project fonts/, then system fonts with CJK fallbacks."""
     candidates = [
+        # Project-local fonts directory (highest priority)
+        str(_FONTS_DIR / f"{font_name}.ttf"),
+        str(_FONTS_DIR / f"{font_name}.otf"),
+        # Absolute path passed directly
         font_name,
         f"/System/Library/Fonts/Supplemental/{font_name}.ttf",
         f"/usr/share/fonts/truetype/{font_name}.ttf",

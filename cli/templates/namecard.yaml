@@ -7,14 +7,14 @@ elements:
 
   - type: text
     text: "{{ name }}"
-    font: STHeiti Medium
+    font: KingHwa_OldSong
     size: 36
     color: black
     pos: [20, 60]
 
   - type: text
     text: "{{ title }}"
-    font: STHeiti Medium
+    font: KingHwa_OldSong
     size: 18
     color: red
     pos: [20, 110]
@@ -27,21 +27,21 @@ elements:
 
   - type: text
     text: "{{ email }}"
-    font: STHeiti Medium
+    font: KingHwa_OldSong
     size: 14
     color: black
     pos: [20, 165]
 
   - type: text
     text: "{{ phone }}"
-    font: STHeiti Medium
+    font: KingHwa_OldSong
     size: 14
     color: black
     pos: [20, 190]
 
   - type: text
     text: "{{ company }}"
-    font: STHeiti Medium
+    font: KingHwa_OldSong
     size: 16
     color: black
     pos: [20, 240]

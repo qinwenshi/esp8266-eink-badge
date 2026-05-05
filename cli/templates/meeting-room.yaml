@@ -7,7 +7,7 @@ elements:
 
   - type: text
     text: "{{ room_name }}"
-    font: STHeiti Medium
+    font: KingHwa_OldSong
     size: 22
     color: white
     pos: [120, 35]
@@ -15,7 +15,7 @@ elements:
 
   - type: text
     text: "{{ status }}"
-    font: STHeiti Medium
+    font: KingHwa_OldSong
     size: 28
     color: "{% if status == 'Available' %}black{% else %}red{% endif %}"
     pos: [120, 130]
@@ -29,14 +29,14 @@ elements:
 
   - type: text
     text: "Next: {{ next_meeting }}"
-    font: STHeiti Medium
+    font: KingHwa_OldSong
     size: 16
     color: black
     pos: [20, 190]
 
   - type: text
     text: "{{ next_time }}"
-    font: STHeiti Medium
+    font: KingHwa_OldSong
     size: 14
     color: red
     pos: [20, 220]
