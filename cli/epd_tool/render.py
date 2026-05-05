@@ -98,6 +98,11 @@ def render_template(template_path: str, data: dict) -> bytes:
             align = elem.get('align', 'left')
             actual_color = 'red' if draw is red_draw else 'black'
             anchor = 'ma' if align == 'center' else 'la'
+            bold = elem.get('bold', False)
+            if bold:
+                # Simulate bold by drawing with 1px offsets in all directions
+                for dx, dy in [(-1,0),(1,0),(0,-1),(0,1),(1,1),(-1,1),(1,-1),(-1,-1)]:
+                    draw.text((x+dx, y+dy), str(elem['text']), font=font, fill=actual_color, anchor=anchor)
             draw.text((x, y), str(elem['text']), font=font, fill=actual_color, anchor=anchor)
 
         elif etype == 'rect':

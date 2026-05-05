@@ -25,6 +25,7 @@ elements:
     font: KingHwa_OldSong
     size: 18
     color: red
+    bold: true
     pos: [20, 128]
 
   - type: text
