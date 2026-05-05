@@ -46,3 +46,7 @@ elements:
     size: 14
     color: black
     pos: [20, 230]
+
+  - type: image
+    src: "avatar.jpg"
+    rect: [0, 256, 240, 160]
