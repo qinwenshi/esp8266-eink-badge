@@ -1,0 +1,42 @@
+size: [240, 416]
+background: white
+elements:
+  - type: rect
+    rect: [0, 0, 240, 70]
+    fill: black
+
+  - type: text
+    text: "{{ room_name }}"
+    font: Helvetica
+    size: 22
+    color: white
+    pos: [120, 35]
+    align: center
+
+  - type: text
+    text: "{{ status }}"
+    font: Helvetica
+    size: 28
+    color: "{% if status == 'Available' %}black{% else %}red{% endif %}"
+    pos: [120, 130]
+    align: center
+
+  - type: line
+    start: [20, 165]
+    end: [220, 165]
+    color: black
+    width: 1
+
+  - type: text
+    text: "Next: {{ next_meeting }}"
+    font: Helvetica
+    size: 16
+    color: black
+    pos: [20, 190]
+
+  - type: text
+    text: "{{ next_time }}"
+    font: Helvetica
+    size: 14
+    color: red
+    pos: [20, 220]

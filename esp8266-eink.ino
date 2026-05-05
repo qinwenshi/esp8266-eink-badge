@@ -1,5 +1,5 @@
 /*
- * Anki card reviewer on ESP8266 + GoodDisplay 3.7" BWR e-ink (GDEY037Z03)
+ * Anki card reviewer on ESP8266 + WFT0371CZ78 3.7" BWR e-ink (UC8253)
  * Three-color display: Black / White / Red
  *
  * Button (GPIO0 = on-board FLASH button, active LOW):
@@ -16,7 +16,7 @@
 #include <WiFiClient.h>
 #include <ArduinoJson.h>
 #include <GxEPD2_3C.h>
-#include "GxEPD2_371_Z03.h"
+#include "GxEPD2_370C_UC8253.h"
 #include <Fonts/FreeMonoBold9pt7b.h>
 #include "config.h"
 
@@ -34,8 +34,8 @@
 #define CONTENT_Y  (STATUS_H + 1)
 #define CONTENT_MAXY (HINT_Y - 2)
 
-GxEPD2_3C<GxEPD2_371_Z03, GxEPD2_371_Z03::HEIGHT> display(
-    GxEPD2_371_Z03(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+GxEPD2_3C<GxEPD2_370C_UC8253, GxEPD2_370C_UC8253::HEIGHT> display(
+    GxEPD2_370C_UC8253(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
 
 // -- State machine ------------------------------------------------------------
 enum State    { ST_INIT, ST_FRONT, ST_BACK, ST_DONE, ST_NO_CARDS, ST_ERROR };
@@ -226,7 +226,7 @@ static void drawHintBar(bool isFront) {
     }
 }
 
-// BWR display does not support partial refresh — always full window
+// BWR display: partial refresh is supported but we always full-refresh for clean color
 static void drawCard() {
     bool isFront = (gState == ST_FRONT);
 

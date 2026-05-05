@@ -1,0 +1,51 @@
+size: [240, 416]
+background: white
+elements:
+  - type: rect
+    rect: [0, 0, 240, 8]
+    fill: red
+
+  - type: text
+    text: "{{ name }}"
+    font: Helvetica
+    size: 36
+    color: black
+    pos: [20, 60]
+
+  - type: text
+    text: "{{ title }}"
+    font: Helvetica
+    size: 18
+    color: red
+    pos: [20, 110]
+
+  - type: line
+    start: [20, 140]
+    end: [220, 140]
+    color: black
+    width: 1
+
+  - type: text
+    text: "{{ email }}"
+    font: Helvetica
+    size: 14
+    color: black
+    pos: [20, 165]
+
+  - type: text
+    text: "{{ phone }}"
+    font: Helvetica
+    size: 14
+    color: black
+    pos: [20, 190]
+
+  - type: text
+    text: "{{ company }}"
+    font: Helvetica
+    size: 16
+    color: black
+    pos: [20, 240]
+
+  - type: rect
+    rect: [0, 408, 240, 8]
+    fill: red

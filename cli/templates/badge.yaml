@@ -1,0 +1,48 @@
+size: [240, 416]
+background: white
+elements:
+  - type: rect
+    rect: [0, 0, 240, 60]
+    fill: black
+
+  - type: text
+    text: "BADGE"
+    font: Helvetica
+    size: 20
+    color: white
+    pos: [120, 30]
+    align: center
+
+  - type: text
+    text: "{{ name }}"
+    font: Helvetica
+    size: 32
+    color: black
+    pos: [20, 100]
+
+  - type: text
+    text: "{{ title }}"
+    font: Helvetica
+    size: 18
+    color: red
+    pos: [20, 150]
+
+  - type: text
+    text: "{{ department }}"
+    font: Helvetica
+    size: 16
+    color: black
+    pos: [20, 185]
+
+  - type: line
+    start: [20, 210]
+    end: [220, 210]
+    color: red
+    width: 2
+
+  - type: text
+    text: "{{ company }}"
+    font: Helvetica
+    size: 14
+    color: black
+    pos: [20, 230]
