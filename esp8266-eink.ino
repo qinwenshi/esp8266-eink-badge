@@ -1,5 +1,6 @@
 /*
- * Anki card reviewer on ESP8266 + Waveshare 4.2" e-ink (WFT0420CZ15)
+ * Anki card reviewer on ESP8266 + GoodDisplay 3.7" BWR e-ink (GDEY037Z03)
+ * Three-color display: Black / White / Red
  *
  * Button (GPIO0 = on-board FLASH button, active LOW):
  *   Front side  -- short press: flip   |  long press: skip (no answer)
@@ -14,10 +15,9 @@
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
 #include <ArduinoJson.h>
-#include <GxEPD2_BW.h>
-#include <epd/GxEPD2_420_M01.h>
+#include <GxEPD2_3C.h>
+#include "GxEPD2_371_Z03.h"
 #include <Fonts/FreeMonoBold9pt7b.h>
-#include <Fonts/FreeMonoBold12pt7b.h>
 #include "config.h"
 
 // -- Display ------------------------------------------------------------------
@@ -26,8 +26,16 @@
 #define EPD_RST   2
 #define EPD_BUSY  5
 
-GxEPD2_BW<GxEPD2_420_M01, GxEPD2_420_M01::HEIGHT> display(
-    GxEPD2_420_M01(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+// Screen: 240 x 416 (portrait)
+#define SCR_W      240
+#define SCR_H      416
+#define STATUS_H    18   // status bar height (0 .. STATUS_H-1)
+#define HINT_Y     398   // hint bar top (= SCR_H - 18)
+#define CONTENT_Y  (STATUS_H + 1)
+#define CONTENT_MAXY (HINT_Y - 2)
+
+GxEPD2_3C<GxEPD2_371_Z03, GxEPD2_371_Z03::HEIGHT> display(
+    GxEPD2_371_Z03(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
 
 // -- State machine ------------------------------------------------------------
 enum State    { ST_INIT, ST_FRONT, ST_BACK, ST_DONE, ST_NO_CARDS, ST_ERROR };
@@ -189,43 +197,40 @@ static void drawWrapped(const char* text,
 
 // -- Screen layouts -----------------------------------------------------------
 static void drawStatusBar() {
-    display.fillRect(0, 0, 400, 20, GxEPD_WHITE);
-    display.drawLine(0, 20, 400, 20, GxEPD_BLACK);
+    display.fillRect(0, 0, SCR_W, STATUS_H, GxEPD_WHITE);
+    display.drawLine(0, STATUS_H, SCR_W, STATUS_H, GxEPD_RED);
     display.setFont(nullptr);
     display.setTextColor(GxEPD_BLACK);
 
-    display.setCursor(4, 14);
+    display.setCursor(2, 13);
     display.print("Anki");
 
-    char buf[24];
-    snprintf(buf, sizeof(buf), "%d / %d", gCardIndex + 1, gCardCount);
-    display.setCursor(55, 14);
+    char buf[20];
+    snprintf(buf, sizeof(buf), "%d/%d", gCardIndex + 1, gCardCount);
+    display.setCursor(38, 13);
     display.print(buf);
 
-    display.setCursor(320, 14);
+    display.setCursor(190, 13);
     display.print(WiFi.RSSI() > -70 ? "WiFi" : "Weak");
 }
 
 static void drawHintBar(bool isFront) {
-    display.fillRect(0, 276, 400, 24, GxEPD_WHITE);
-    display.drawLine(0, 276, 400, 276, GxEPD_BLACK);
+    display.fillRect(0, HINT_Y, SCR_W, SCR_H - HINT_Y, GxEPD_WHITE);
+    display.drawLine(0, HINT_Y, SCR_W, HINT_Y, GxEPD_RED);
     display.setFont(nullptr);
     display.setTextColor(GxEPD_BLACK);
     if (isFront) {
-        display.setCursor(8,  293); display.print("[short] flip");
-        display.setCursor(215, 293); display.print("[long] skip");
+        display.setCursor(4,  SCR_H - 5); display.print("[short]flip  [long]skip");
     } else {
-        display.setCursor(8,  293); display.print("[short] Good");
-        display.setCursor(215, 293); display.print("[long] Again");
+        display.setCursor(4,  SCR_H - 5); display.print("[short]Good  [long]Again");
     }
 }
 
-static void drawCard(bool partial) {
+// BWR display does not support partial refresh — always full window
+static void drawCard() {
     bool isFront = (gState == ST_FRONT);
 
-    if (partial) display.setPartialWindow(0, 0, 400, 300);
-    else         display.setFullWindow();
-
+    display.setFullWindow();
     display.firstPage();
     do {
         display.fillScreen(GxEPD_WHITE);
@@ -233,12 +238,16 @@ static void drawCard(bool partial) {
         drawHintBar(isFront);
 
         if (isFront) {
-            drawWrapped(gFront, 10, 26, 390, 268, &FreeMonoBold12pt7b, GxEPD_BLACK);
+            drawWrapped(gFront, 4, CONTENT_Y, SCR_W - 4, CONTENT_MAXY,
+                        &FreeMonoBold9pt7b, GxEPD_BLACK);
         } else {
-            // Front text small at top, full answer below divider
-            drawWrapped(gFront, 10, 24, 390,  90, &FreeMonoBold9pt7b,  GxEPD_BLACK);
-            display.drawLine(10, 100, 390, 100, GxEPD_BLACK);
-            drawWrapped(gBack,  10, 104, 390, 268, &FreeMonoBold12pt7b, GxEPD_BLACK);
+            // Front text in red (small) at top of content area (~3 lines at 9pt)
+            drawWrapped(gFront, 4, CONTENT_Y, SCR_W - 4, CONTENT_Y + 52,
+                        &FreeMonoBold9pt7b, GxEPD_RED);
+            display.drawLine(4, CONTENT_Y + 56, SCR_W - 4, CONTENT_Y + 56, GxEPD_RED);
+            // Answer in black below divider
+            drawWrapped(gBack,  4, CONTENT_Y + 60, SCR_W - 4, CONTENT_MAXY,
+                        &FreeMonoBold9pt7b, GxEPD_BLACK);
         }
     } while (display.nextPage());
 }
@@ -248,13 +257,14 @@ static void drawMessage(const char* line1, const char* line2 = nullptr) {
     display.firstPage();
     do {
         display.fillScreen(GxEPD_WHITE);
-        display.setFont(&FreeMonoBold12pt7b);
+        display.setFont(&FreeMonoBold9pt7b);
         display.setTextColor(GxEPD_BLACK);
-        display.setCursor(20, 145);
+        display.setCursor(4, SCR_H / 2 - 10);
         display.print(line1);
         if (line2) {
-            display.setFont(&FreeMonoBold9pt7b);
-            display.setCursor(20, 175);
+            display.setFont(nullptr);
+            display.setTextColor(GxEPD_RED);
+            display.setCursor(4, SCR_H / 2 + 15);
             display.print(line2);
         }
     } while (display.nextPage());
@@ -288,7 +298,7 @@ static void nextCard() {
     }
     if (fetchCard(gDueCards[gCardIndex])) {
         gState = ST_FRONT;
-        drawCard(false);  // full refresh on new card to avoid ghosting
+        drawCard();
     } else {
         nextCard();  // skip on fetch error
     }
@@ -328,7 +338,7 @@ void setup() {
 
     if (fetchCard(gDueCards[0])) {
         gState = ST_FRONT;
-        drawCard(false);
+        drawCard();
     }
 }
 
@@ -341,7 +351,7 @@ void loop() {
     if (gState == ST_FRONT) {
         if (ev == BTN_SHORT) {
             gState = ST_BACK;
-            drawCard(true);  // fast partial refresh for flip
+            drawCard();      // full refresh (BWR has no partial update)
         } else {
             nextCard();      // long press: skip
         }
