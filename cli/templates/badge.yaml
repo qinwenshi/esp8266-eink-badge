@@ -48,6 +48,6 @@ elements:
     pos: [20, 206]
 
   - type: image
-    src: "avatar.jpg"
+    src: "{{ avatar | default('avatar.jpg') }}"
     rect: [0, 230, 240, 186]
     fit: cover

@@ -116,6 +116,9 @@ def render_template(template_path: str, data: dict) -> bytes:
 
         elif etype == 'image':
             src = Path(path.parent) / elem['src']
+            if not src.exists():
+                print(f"[warn] image not found: {src}, skipping")
+                continue
             img = Image.open(src).convert('RGBA')
             x, y, iw, ih = elem['rect']
             fit = elem.get('fit', 'cover')
