@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.backends.legacy:build"
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "epd-tool"
@@ -17,3 +17,7 @@ dependencies = [
 
 [project.scripts]
 epd = "epd_tool.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["epd_tool*"]
