@@ -131,9 +131,14 @@ static void doPull() {
     if (remoteVersion <= gLastVersion) return;  // nothing new
 
     // ── Step 2: stream /current.epd ──────────────────────────────────────────
-    drawMessage("Syncing...");
+    // Note: skip drawMessage("Syncing...") here — it triggers a full tri-color
+    // refresh (~20s), causing a second full refresh when the image arrives.
+    // Instead show a lightweight serial log only.
+    Serial.println("Syncing...");
+
     String epdUrl = String("http://") + SYNC_HOST + ":" + SYNC_PORT + "/current.epd";
     http.begin(client, epdUrl);
+    http.setTimeout(30000);
     code = http.GET();
     if (code != 200) {
         http.end();
@@ -164,20 +169,24 @@ static void doPull() {
         return;
     }
 
-    // Read BW plane → write to display BW buffer (0x10)
+    // Write directly to the UC8253 driver (bypass GxEPD2_3C page buffer) so we
+    // can route BW and Red planes to the correct hardware commands (0x10 / 0x13)
+    // using the single reusable planeBuf instead of two full-size buffers.
+
+    // BW plane → cmd 0x10
     if (!readExact(*stream, planeBuf, PLANE_SIZE)) {
         http.end(); drawMessage("BW read err"); return;
     }
-    display.writeImage(planeBuf, 0, 0, 240, 416, GxEPD_BLACK, false, false, false);
+    display.epd2.writeImage(planeBuf, 0, 0, 240, 416);
 
-    // Reuse same buffer for Red plane → write to display Red buffer (0x13)
+    // Red plane → cmd 0x13 (color overload routes by GxEPD_RED)
     if (!readExact(*stream, planeBuf, PLANE_SIZE)) {
         http.end(); drawMessage("Red read err"); return;
     }
-    display.writeImage(planeBuf, 0, 0, 240, 416, GxEPD_RED, false, false, false);
+    display.epd2.writeImage(planeBuf, 0, 0, 240, 416, (uint16_t)GxEPD_RED);
     http.end();
 
-    display.refresh(false);
+    display.epd2.refresh(false);
 
     gLastVersion = remoteVersion;
 }
