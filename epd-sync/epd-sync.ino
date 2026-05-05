@@ -71,17 +71,19 @@ bool parseAndDisplay(const uint8_t* buf, size_t len) {
 
 // ── WiFi connect ──────────────────────────────────────────────────────────────
 static void connectWiFi() {
-    drawMessage("Connecting...");
+    Serial.print("Connecting to WiFi...");
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     uint32_t start = millis();
     while (WiFi.status() != WL_CONNECTED) {
         if (millis() - start > 20000) {
-            drawMessage("WiFi failed", WIFI_SSID);
+            Serial.println(" failed!");
             return;
         }
         delay(500);
+        Serial.print(".");
     }
+    Serial.println(" OK");
 }
 
 // ── Pull mode ─────────────────────────────────────────────────────────────────
@@ -195,7 +197,9 @@ void setup() {
     Serial.begin(115200);
     display.init(115200, true, 10, false);
     connectWiFi();
-    drawMessage("Up to date");
+    // Screen untouched — EPD retains its last image without power.
+    // Only update when new content arrives via doPull().
+    Serial.println("Ready, waiting for updates...");
 }
 
 void loop() {
