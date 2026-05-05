@@ -100,8 +100,8 @@ def render_template(template_path: str, data: dict) -> bytes:
             anchor = 'ma' if align == 'center' else 'la'
             bold = elem.get('bold', False)
             if bold:
-                # Simulate bold by drawing with 1px offsets in all directions
-                for dx, dy in [(-1,0),(1,0),(0,-1),(0,1),(1,1),(-1,1),(1,-1),(-1,-1)]:
+                # Light bold: draw with slight right+down offset only
+                for dx, dy in [(1, 0), (0, 1)]:
                     draw.text((x+dx, y+dy), str(elem['text']), font=font, fill=actual_color, anchor=anchor)
             draw.text((x, y), str(elem['text']), font=font, fill=actual_color, anchor=anchor)
 
