@@ -46,6 +46,21 @@ static void drawMessage(const char* line1, const char* line2 = nullptr) {
     } while (display.nextPage());
 }
 
+// Show a small error banner at the top via partial refresh (non-destructive).
+// Black background, white small text, height=18px.
+static void drawErrorBar(const char* msg) {
+    Serial.printf("[error] %s\n", msg);
+    display.setPartialWindow(0, 0, 240, 18);
+    display.firstPage();
+    do {
+        display.fillScreen(GxEPD_BLACK);
+        display.setFont(nullptr);          // tiny built-in font (6x8)
+        display.setTextColor(GxEPD_WHITE);
+        display.setCursor(4, 5);
+        display.print(msg);
+    } while (display.nextPage());
+}
+
 // Parse and display a fully-loaded .epd buffer (Push mode helper).
 bool parseAndDisplay(const uint8_t* buf, size_t len) {
     if (len < EPD_TOTAL) return false;
@@ -124,7 +139,9 @@ static void doPull() {
     int code = http.GET();
     if (code != 200) {
         http.end();
-        drawMessage("Version err", String(code).c_str());
+        char buf[40];
+        snprintf(buf, sizeof(buf), "Version err: HTTP %d", code);
+        drawErrorBar(buf);
         return;
     }
     uint32_t remoteVersion = (uint32_t)http.getString().toInt();
@@ -144,7 +161,9 @@ static void doPull() {
     code = http.GET();
     if (code != 200) {
         http.end();
-        drawMessage("Fetch err", String(code).c_str());
+        char buf[40];
+        snprintf(buf, sizeof(buf), "Fetch err: HTTP %d", code);
+        drawErrorBar(buf);
         return;
     }
 
@@ -154,20 +173,22 @@ static void doPull() {
     uint8_t header[8];
     if (!readExact(*stream, header, 8)) {
         http.end();
-        drawMessage("Header err");
+        drawErrorBar("Header read timeout");
         return;
     }
     if (header[0] != EPD_MAGIC[0] || header[1] != EPD_MAGIC[1] ||
         header[2] != EPD_MAGIC[2] || header[3] != EPD_MAGIC[3]) {
         http.end();
-        drawMessage("Bad magic");
+        drawErrorBar("Bad magic bytes");
         return;
     }
     uint16_t w = header[4] | (header[5] << 8);
     uint16_t h = header[6] | (header[7] << 8);
     if (w != 240 || h != 416) {
         http.end();
-        drawMessage("Wrong size");
+        char buf[40];
+        snprintf(buf, sizeof(buf), "Wrong size %dx%d", w, h);
+        drawErrorBar(buf);
         return;
     }
 
@@ -177,13 +198,13 @@ static void doPull() {
 
     // BW plane → cmd 0x10 (black plane; must use GxEPD_BLACK overload)
     if (!readExact(*stream, planeBuf, PLANE_SIZE)) {
-        http.end(); drawMessage("BW read err"); return;
+        http.end(); drawErrorBar("BW plane timeout"); return;
     }
     display.epd2.writeImage(planeBuf, 0, 0, 240, 416, (uint16_t)GxEPD_BLACK);
 
     // Red plane → cmd 0x13 (color plane)
     if (!readExact(*stream, planeBuf, PLANE_SIZE)) {
-        http.end(); drawMessage("Red read err"); return;
+        http.end(); drawErrorBar("Red plane timeout"); return;
     }
     display.epd2.writeImage(planeBuf, 0, 0, 240, 416, (uint16_t)GxEPD_RED);
     http.end();
