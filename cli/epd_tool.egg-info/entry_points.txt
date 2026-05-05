@@ -1,0 +1,2 @@
+[console_scripts]
+epd = epd_tool.cli:main

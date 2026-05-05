@@ -348,7 +348,8 @@ void GxEPD2_370C_UC8253::_InitDisplay()
 {
   _power_is_on = false;
   _writeCommand(0x00); // PANEL SETTING
-  _writeData(0xC3);    // RES[1:0], REG, KW/R, UD, SHL, SHD_N, RST_N          LUT_REG	
+  _writeData(0xCF);    // RES[1:0]=11(240x416), REG=0, KW/R=0(BWR), UD=1(gate↑), SHL=1(src→), SHD_N=1, RST_N=1
+  // UD=1: gate scan reversed → y=0 at visual TOP; SHL=1: source shift right → x=0 at visual LEFT	
 
   _writeCommand(0xE0);
 	_writeData(0x02); 

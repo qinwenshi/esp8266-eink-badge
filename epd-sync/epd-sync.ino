@@ -48,6 +48,7 @@ static void drawMessage(const char* line1, const char* line2 = nullptr) {
 
 // Show a small error banner at the top via partial refresh (non-destructive).
 // Black background, white small text, height=18px.
+// Physical y=0 is visual TOP (UD=1 in panel setting, portrait orientation).
 static void drawErrorBar(const char* msg) {
     Serial.printf("[error] %s\n", msg);
     display.setPartialWindow(0, 0, 240, 18);
@@ -107,6 +108,21 @@ static void connectWiFi() {
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
 
+// ── Device identity ───────────────────────────────────────────────────────────
+// Last 3 bytes of MAC → 6 hex chars, e.g. "A1B2C3"
+static String gDeviceId;
+
+static String buildDeviceId() {
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    char id[7];
+    snprintf(id, sizeof(id), "%02X%02X%02X", mac[3], mac[4], mac[5]);
+    return String(id);
+}
+
+// ── Boot button (GPIO0 = BOOT key on ESP8266 NodeMCU) ────────────────────────
+#define BOOT_PIN 0
+
 // Single plane buffer — reused for BW then Red (saves 12 KB vs two buffers)
 static uint8_t planeBuf[PLANE_SIZE];
 
@@ -124,7 +140,7 @@ static bool readExact(WiFiClient& stream, uint8_t* dest, size_t n) {
     return true;
 }
 
-static void doPull() {
+static void doPull(bool fullRefresh = false) {
     if (WiFi.status() != WL_CONNECTED) {
         connectWiFi();
         if (WiFi.status() != WL_CONNECTED) return;
@@ -132,11 +148,13 @@ static void doPull() {
 
     WiFiClient client;
     HTTPClient http;
+    String body = "{\"id\":\"" + gDeviceId + "\"}";
 
-    // ── Step 1: fetch /version ────────────────────────────────────────────────
+    // ── Step 1: POST /version ─────────────────────────────────────────────────
     String versionUrl = String("http://") + SYNC_HOST + ":" + SYNC_PORT + "/version";
     http.begin(client, versionUrl);
-    int code = http.GET();
+    http.addHeader("Content-Type", "application/json");
+    int code = http.POST(body);
     if (code != 200) {
         http.end();
         char buf[40];
@@ -147,18 +165,22 @@ static void doPull() {
     uint32_t remoteVersion = (uint32_t)http.getString().toInt();
     http.end();
 
-    if (remoteVersion <= gLastVersion) return;  // nothing new
+    if (!fullRefresh && remoteVersion <= gLastVersion) return;  // nothing new
 
-    // ── Step 2: stream /current.epd ──────────────────────────────────────────
-    // Note: skip drawMessage("Syncing...") here — it triggers a full tri-color
-    // refresh (~20s), causing a second full refresh when the image arrives.
-    // Instead show a lightweight serial log only.
+    // ── Step 2: POST /current.epd ─────────────────────────────────────────────
     Serial.println("Syncing...");
 
     String epdUrl = String("http://") + SYNC_HOST + ":" + SYNC_PORT + "/current.epd";
     http.begin(client, epdUrl);
+    http.addHeader("Content-Type", "application/json");
     http.setTimeout(30000);
-    code = http.GET();
+    code = http.POST(body);
+    if (code == 204) {
+        // Server says "no content" — device not configured yet, stay silent
+        http.end();
+        Serial.println("Not configured on server yet.");
+        return;
+    }
     if (code != 200) {
         http.end();
         char buf[40];
@@ -209,7 +231,7 @@ static void doPull() {
     display.epd2.writeImage(planeBuf, 0, 0, 240, 416, (uint16_t)GxEPD_RED);
     http.end();
 
-    display.epd2.refresh(false);
+    display.epd2.refresh(fullRefresh);  // true = full refresh (ghost clear), false = partial
 
     gLastVersion = remoteVersion;
 }
@@ -217,6 +239,9 @@ static void doPull() {
 void setup() {
     Serial.begin(115200);
     display.init(115200, true, 10, false);
+    pinMode(BOOT_PIN, INPUT_PULLUP);
+    gDeviceId = buildDeviceId();
+    Serial.printf("Device ID: %s\n", gDeviceId.c_str());
     connectWiFi();
     // Screen untouched — EPD retains its last image without power.
     // Only update when new content arrives via doPull().
@@ -224,7 +249,26 @@ void setup() {
 }
 
 void loop() {
+    // Boot button: press = LOW (active-low, internal pull-up)
     static uint32_t lastPull = 0;
+    static uint32_t btnPressTime = 0;
+    static bool     btnWasPressed = false;
+
+    bool btnDown = (digitalRead(BOOT_PIN) == LOW);
+    if (btnDown && !btnWasPressed) {
+        btnPressTime = millis();
+        btnWasPressed = true;
+    } else if (!btnDown && btnWasPressed) {
+        // Released — debounce: must have been held ≥50ms
+        if (millis() - btnPressTime >= 50) {
+            Serial.println("Boot button: force full refresh + re-pull");
+            gLastVersion = 0;
+            lastPull = 0;
+            doPull(true);  // full refresh
+        }
+        btnWasPressed = false;
+    }
+
     if (millis() - lastPull >= PULL_INTERVAL_MS) {
         lastPull = millis();
         doPull();

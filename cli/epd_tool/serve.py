@@ -2,6 +2,12 @@ import time
 import threading
 import json
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
+
+
+class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle each request in a separate thread."""
+    daemon_threads = True
 
 from .render import render_template
 
@@ -217,7 +223,7 @@ def serve(
     else:
         raise ValueError("Either template or db_path must be provided")
 
-    httpd = HTTPServer((host, port), EpdHandler)
+    httpd = ThreadingHTTPServer((host, port), EpdHandler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     click.echo(f"[epd-tool] Serving on http://{host}:{port}")
