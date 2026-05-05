@@ -173,13 +173,13 @@ static void doPull() {
     // can route BW and Red planes to the correct hardware commands (0x10 / 0x13)
     // using the single reusable planeBuf instead of two full-size buffers.
 
-    // BW plane → cmd 0x10
+    // BW plane → cmd 0x10 (black plane; must use GxEPD_BLACK overload)
     if (!readExact(*stream, planeBuf, PLANE_SIZE)) {
         http.end(); drawMessage("BW read err"); return;
     }
-    display.epd2.writeImage(planeBuf, 0, 0, 240, 416);
+    display.epd2.writeImage(planeBuf, 0, 0, 240, 416, (uint16_t)GxEPD_BLACK);
 
-    // Red plane → cmd 0x13 (color overload routes by GxEPD_RED)
+    // Red plane → cmd 0x13 (color plane)
     if (!readExact(*stream, planeBuf, PLANE_SIZE)) {
         http.end(); drawMessage("Red read err"); return;
     }
