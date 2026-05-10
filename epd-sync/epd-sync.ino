@@ -21,6 +21,8 @@ GxEPD2_3C<GxEPD2_370C_UC8253, GxEPD2_370C_UC8253::HEIGHT> display(
 
 // ── Shared state ──────────────────────────────────────────────────────────────
 uint32_t gLastVersion = 0;
+static uint8_t gPartialCount = 0;       // partial refresh counter
+static const uint8_t PARTIAL_MAX = 10;  // force full refresh every N partial updates
 
 // ── .epd format constants ─────────────────────────────────────────────────────
 static const uint8_t EPD_MAGIC[4] = {0x45, 0x50, 0x44, 0x32};  // "EPD2"
@@ -232,6 +234,17 @@ static void doPull(bool fullRefresh = false) {
     http.end();
 
     display.epd2.refresh(fullRefresh);  // true = full refresh (ghost clear), false = partial
+
+    if (fullRefresh) {
+        gPartialCount = 0;
+    } else {
+        gPartialCount++;
+        if (gPartialCount >= PARTIAL_MAX) {
+            Serial.println("Auto full refresh (partial limit reached)");
+            display.epd2.refresh(true);
+            gPartialCount = 0;
+        }
+    }
 
     gLastVersion = remoteVersion;
 }
