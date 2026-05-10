@@ -2,11 +2,8 @@
 # flash.sh — 编译并烧录 ESP8266 墨水屏固件
 #
 # 用法:
-#   ./flash.sh              # 烧录 Anki 复习器固件（默认）
-#   ./flash.sh epd-sync     # 烧录 EPD 同步固件
-#   ./flash.sh anki         # 烧录 Anki 复习器固件
+#   ./flash.sh              # 烧录 epd-sync 固件（默认）
 #   ./flash.sh -p /dev/cu.usbserial-XXXX  # 指定串口
-#   ./flash.sh epd-sync -p /dev/cu.usbserial-XXXX
 #   ./flash.sh monitor      # 仅打开串口监视器（不烧录）
 
 set -e
@@ -16,13 +13,11 @@ BAUD=115200
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # ── 解析参数 ──────────────────────────────────────────────
-TARGET="anki"
+TARGET="epd-sync"
 PORT=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        anki)      TARGET="anki";     shift ;;
-        epd-sync)  TARGET="epd-sync"; shift ;;
         monitor)   TARGET="monitor";  shift ;;
         -p|--port) PORT="$2";         shift 2 ;;
         *)         echo "未知参数: $1"; exit 1 ;;
@@ -53,17 +48,10 @@ if [[ "$TARGET" == "monitor" ]]; then
     exit 0
 fi
 
-# ── 确定 sketch 路径 ──────────────────────────────────────
-if [[ "$TARGET" == "epd-sync" ]]; then
-    SKETCH="$SCRIPT_DIR/epd-sync"
-    LABEL="EPD Sync"
-else
-    SKETCH="$SCRIPT_DIR"
-    LABEL="Anki 复习器"
-fi
+SKETCH="$SCRIPT_DIR/epd-sync"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  固件 : $LABEL"
+echo "  固件 : EPD Sync"
 echo "  串口 : $PORT"
 echo "  板型 : $FQBN"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
