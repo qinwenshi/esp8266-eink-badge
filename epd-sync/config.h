@@ -13,4 +13,4 @@
 #define SYNC_MODE         0
 #define SYNC_HOST         "192.168.1.28"   // IP of the machine running epd-tool serve
 #define SYNC_PORT         8080
-#define PULL_INTERVAL_MS  60000            // poll every 60 s (Pull mode)
+#define PULL_INTERVAL_MS  10800000         // poll every 3 hours (Pull mode)
