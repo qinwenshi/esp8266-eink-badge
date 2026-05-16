@@ -20,9 +20,28 @@ GxEPD2_3C<GxEPD2_370C_UC8253, GxEPD2_370C_UC8253::HEIGHT> display(
     GxEPD2_370C_UC8253(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
 
 // ── Shared state ──────────────────────────────────────────────────────────────
-uint32_t gLastVersion = 0;
-static uint8_t gPartialCount = 0;       // partial refresh counter
 static const uint8_t PARTIAL_MAX = 10;  // force full refresh every N partial updates
+
+// ── RTC memory — persists across resets/crashes ───────────────────────────────
+struct RtcData {
+    uint32_t magic;
+    uint32_t lastVersion;
+    uint8_t  partialCount;
+    uint8_t  _pad[3];
+};
+#define RTC_MAGIC 0x5E103A5E
+
+static RtcData rtcData;
+
+static bool loadRtcData() {
+    ESP.rtcUserMemoryRead(0, (uint32_t*)&rtcData, sizeof(rtcData));
+    return rtcData.magic == RTC_MAGIC;
+}
+
+static void saveRtcData() {
+    rtcData.magic = RTC_MAGIC;
+    ESP.rtcUserMemoryWrite(0, (uint32_t*)&rtcData, sizeof(rtcData));
+}
 
 // ── .epd format constants ─────────────────────────────────────────────────────
 static const uint8_t EPD_MAGIC[4] = {0x45, 0x50, 0x44, 0x32};  // "EPD2"
@@ -111,7 +130,6 @@ static void connectWiFi() {
 #include <WiFiClient.h>
 
 // ── Device identity ───────────────────────────────────────────────────────────
-// Last 3 bytes of MAC → 6 hex chars, e.g. "A1B2C3"
 static String gDeviceId;
 
 static String buildDeviceId() {
@@ -122,10 +140,10 @@ static String buildDeviceId() {
     return String(id);
 }
 
-// ── Boot button (GPIO0 = BOOT key on ESP8266 NodeMCU) ────────────────────────
+// ── Boot button ───────────────────────────────────────────────────────────────
 #define BOOT_PIN 0
 
-// Single plane buffer — reused for BW then Red (saves 12 KB vs two buffers)
+// ── Single plane buffer ───────────────────────────────────────────────────────
 static uint8_t planeBuf[PLANE_SIZE];
 
 static bool readExact(WiFiClient& stream, uint8_t* dest, size_t n) {
@@ -143,9 +161,16 @@ static bool readExact(WiFiClient& stream, uint8_t* dest, size_t n) {
 }
 
 static void doPull(bool fullRefresh = false) {
+    // Wake WiFi modem if it was sleeping
+    WiFi.forceSleepWake();
+    delay(10);
+
     if (WiFi.status() != WL_CONNECTED) {
         connectWiFi();
-        if (WiFi.status() != WL_CONNECTED) return;
+        if (WiFi.status() != WL_CONNECTED) {
+            WiFi.forceSleepBegin();
+            return;
+        }
     }
 
     WiFiClient client;
@@ -159,6 +184,7 @@ static void doPull(bool fullRefresh = false) {
     int code = http.POST(body);
     if (code != 200) {
         http.end();
+        WiFi.forceSleepBegin();
         char buf[40];
         snprintf(buf, sizeof(buf), "Version err: HTTP %d", code);
         drawErrorBar(buf);
@@ -167,7 +193,11 @@ static void doPull(bool fullRefresh = false) {
     uint32_t remoteVersion = (uint32_t)http.getString().toInt();
     http.end();
 
-    if (!fullRefresh && remoteVersion <= gLastVersion) return;  // nothing new
+    if (!fullRefresh && remoteVersion <= rtcData.lastVersion) {
+        Serial.println("Up to date.");
+        WiFi.forceSleepBegin();
+        return;
+    }
 
     // ── Step 2: POST /current.epd ─────────────────────────────────────────────
     Serial.println("Syncing...");
@@ -178,13 +208,14 @@ static void doPull(bool fullRefresh = false) {
     http.setTimeout(30000);
     code = http.POST(body);
     if (code == 204) {
-        // Server says "no content" — device not configured yet, stay silent
         http.end();
+        WiFi.forceSleepBegin();
         Serial.println("Not configured on server yet.");
         return;
     }
     if (code != 200) {
         http.end();
+        WiFi.forceSleepBegin();
         char buf[40];
         snprintf(buf, sizeof(buf), "Fetch err: HTTP %d", code);
         drawErrorBar(buf);
@@ -193,89 +224,82 @@ static void doPull(bool fullRefresh = false) {
 
     WiFiClient* stream = http.getStreamPtr();
 
-    // Read and validate 8-byte header
     uint8_t header[8];
     if (!readExact(*stream, header, 8)) {
-        http.end();
-        drawErrorBar("Header read timeout");
-        return;
+        http.end(); WiFi.forceSleepBegin(); drawErrorBar("Header read timeout"); return;
     }
     if (header[0] != EPD_MAGIC[0] || header[1] != EPD_MAGIC[1] ||
         header[2] != EPD_MAGIC[2] || header[3] != EPD_MAGIC[3]) {
-        http.end();
-        drawErrorBar("Bad magic bytes");
-        return;
+        http.end(); WiFi.forceSleepBegin(); drawErrorBar("Bad magic bytes"); return;
     }
     uint16_t w = header[4] | (header[5] << 8);
     uint16_t h = header[6] | (header[7] << 8);
     if (w != 240 || h != 416) {
-        http.end();
+        http.end(); WiFi.forceSleepBegin();
         char buf[40];
         snprintf(buf, sizeof(buf), "Wrong size %dx%d", w, h);
-        drawErrorBar(buf);
-        return;
+        drawErrorBar(buf); return;
     }
 
-    // Write directly to the UC8253 driver (bypass GxEPD2_3C page buffer) so we
-    // can route BW and Red planes to the correct hardware commands (0x10 / 0x13)
-    // using the single reusable planeBuf instead of two full-size buffers.
-
-    // BW plane → cmd 0x10 (black plane; must use GxEPD_BLACK overload)
     if (!readExact(*stream, planeBuf, PLANE_SIZE)) {
-        http.end(); drawErrorBar("BW plane timeout"); return;
+        http.end(); WiFi.forceSleepBegin(); drawErrorBar("BW plane timeout"); return;
     }
     display.epd2.writeImage(planeBuf, 0, 0, 240, 416, (uint16_t)GxEPD_BLACK);
 
-    // Red plane → cmd 0x13 (color plane)
     if (!readExact(*stream, planeBuf, PLANE_SIZE)) {
-        http.end(); drawErrorBar("Red plane timeout"); return;
+        http.end(); WiFi.forceSleepBegin(); drawErrorBar("Red plane timeout"); return;
     }
     display.epd2.writeImage(planeBuf, 0, 0, 240, 416, (uint16_t)GxEPD_RED);
     http.end();
+    WiFi.forceSleepBegin();  // done with network — sleep modem until next poll
 
-    // Decide refresh mode before refreshing — only one refresh per update.
-    // Force full refresh every PARTIAL_MAX updates to prevent red pigment buildup.
-    bool doFull = fullRefresh || (gPartialCount >= PARTIAL_MAX);
+    // One refresh per update; force full every PARTIAL_MAX cycles.
+    bool doFull = fullRefresh || (rtcData.partialCount >= PARTIAL_MAX);
     display.epd2.refresh(doFull);
     if (doFull) {
-        Serial.println(fullRefresh ? "Full refresh (requested)" : "Full refresh (auto, partial limit)");
-        gPartialCount = 0;
+        Serial.println(fullRefresh ? "Full refresh (requested)" : "Full refresh (auto)");
+        rtcData.partialCount = 0;
     } else {
-        gPartialCount++;
+        rtcData.partialCount++;
     }
 
-    gLastVersion = remoteVersion;
+    rtcData.lastVersion = remoteVersion;
+    saveRtcData();
 }
 
 void setup() {
     Serial.begin(115200);
     display.init(115200, true, 10, false);
     pinMode(BOOT_PIN, INPUT_PULLUP);
+
+    if (!loadRtcData()) {
+        rtcData.lastVersion  = 0;
+        rtcData.partialCount = 0;
+    }
+
     gDeviceId = buildDeviceId();
-    Serial.printf("Device ID: %s\n", gDeviceId.c_str());
-    connectWiFi();
-    // Screen untouched — EPD retains its last image without power.
-    // Only update when new content arrives via doPull().
-    Serial.println("Ready, waiting for updates...");
+    Serial.printf("Device ID: %s  lastVersion=%u  partialCount=%u\n",
+                  gDeviceId.c_str(), rtcData.lastVersion, rtcData.partialCount);
+
+    doPull();  // initial pull on boot (screen untouched if content unchanged)
 }
 
 void loop() {
-    // Boot button: press = LOW (active-low, internal pull-up)
-    static uint32_t lastPull = 0;
+    static uint32_t lastPull    = 0;
     static uint32_t btnPressTime = 0;
     static bool     btnWasPressed = false;
 
+    // Boot button: force full refresh + re-pull
     bool btnDown = (digitalRead(BOOT_PIN) == LOW);
     if (btnDown && !btnWasPressed) {
-        btnPressTime = millis();
+        btnPressTime  = millis();
         btnWasPressed = true;
     } else if (!btnDown && btnWasPressed) {
-        // Released — debounce: must have been held ≥50ms
         if (millis() - btnPressTime >= 50) {
             Serial.println("Boot button: force full refresh + re-pull");
-            gLastVersion = 0;
+            rtcData.lastVersion = 0;
             lastPull = 0;
-            doPull(true);  // full refresh
+            doPull(true);
         }
         btnWasPressed = false;
     }
