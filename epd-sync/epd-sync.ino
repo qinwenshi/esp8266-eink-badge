@@ -233,17 +233,15 @@ static void doPull(bool fullRefresh = false) {
     display.epd2.writeImage(planeBuf, 0, 0, 240, 416, (uint16_t)GxEPD_RED);
     http.end();
 
-    display.epd2.refresh(fullRefresh);  // true = full refresh (ghost clear), false = partial
-
-    if (fullRefresh) {
+    // Decide refresh mode before refreshing — only one refresh per update.
+    // Force full refresh every PARTIAL_MAX updates to prevent red pigment buildup.
+    bool doFull = fullRefresh || (gPartialCount >= PARTIAL_MAX);
+    display.epd2.refresh(doFull);
+    if (doFull) {
+        Serial.println(fullRefresh ? "Full refresh (requested)" : "Full refresh (auto, partial limit)");
         gPartialCount = 0;
     } else {
         gPartialCount++;
-        if (gPartialCount >= PARTIAL_MAX) {
-            Serial.println("Auto full refresh (partial limit reached)");
-            display.epd2.refresh(true);
-            gPartialCount = 0;
-        }
     }
 
     gLastVersion = remoteVersion;
